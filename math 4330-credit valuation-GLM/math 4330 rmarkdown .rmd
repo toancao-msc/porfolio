@@ -1,0 +1,308 @@
+---
+title: "Math 4330-Project"
+author: 'Cao The Cong Toan #215230170'
+date: "December 2020"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+  html_document:
+    toc: yes
+    toc_depth: 2
+---
+
+## Loan Status Prediction
+
+## 1) Overview of the problem
+   This project is about Loan Status Prediction.Data is accessed from https://www.kaggle.com/ . There are 12 variable in the data. Categorical regression analysis is used to build a fit mode, and determinant significant variables.The studying responce in this project is loan status (Yes or No).The purpose of this study is finding the considered variable to make prediction on the approval loan application. 
+
+
+## 2)Data and modeling approach,
+
+
+## 2.1)Exporing and Dealing with missing data 
+
+```{r}
+data<-read.csv("D:\\math\\math 4330\\project\\loan_data_set13.csv")
+str(data)
+devtools::install_github('gmonette/spida2')
+library(spida2)
+tablemissing(data)
+
+```
+## Handling missing data steps:
+To reduce the data loss, I replace the missing data of Loan amount to the mean value,then delete the categorical missing data.
+
+
+#Method: 
+ 
+Handling Missing values
+
+Replace numerical values with mean 
+
+Ignore/remove categorical values
+
+```{r}
+library(lattice)
+data$LoanAmount[is.na(data$LoanAmount)] <- mean(data$LoanAmount, na.rm = TRUE)
+ 
+data1<-na.omit(data)   #Omit the empty categroical rows
+ 
+dt<-subset(data1,select=-c(Loan_ID))# Deleting the ID column
+ dt$Loan_Status <- ifelse(dt$Loan_Status == "Y",1,0)  #encoding the responsd Loan Status
+dt$Loan_Status<-factor(as.character(dt$Loan_Status))
+```
+Amount of missing data is deleted:
+
+Gender :12 rows
+
+Self employ:32 rows
+
+Married 3 rows 
+
+Loan_Amount_Term:13 rows
+
+Credit History: 43 rows
+
+Total delete rows: 103
+
+Intial data is 614rows.
+
+Remaining data is 510 rows
+
+17% data was removed.
+
+
+
+# After processed data
+```{r}
+tablemissing(dt)
+```
+# Xqplot
+```{r}
+xqplot(dt)
+```
+
+## 2.2)Relationships between pairs of variables
+
+
+```{r}
+
+    tab(dt,~Gender+Loan_Status)
+    tab__(dt,~Gender+Loan_Status) %>%
+    barchart(
+    horizontal = FALSE,
+    ylab = 'Number of Loan Status',
+    auto.key = list(
+      space = 'right',
+      reverse.rows = T,
+      title = 'Approve'
+         )
+    )
+
+    ```
+    This chart shows the majority of loan applicant is male.
+    
+    
+```{r}
+   # percent comparision
+    tab__(dt,~Gender+Loan_Status,pct=1) %>%
+    barchart(
+    horizontal = FALSE,
+    ylab = 'Percent of Loan Status',
+    auto.key = list(
+      space = 'right',
+      reverse.rows = T,
+      title = 'Approve'
+    )
+  )
+```
+   The chart show the relatively no difference between male and female in getting the loan approve.
+```{r}
+    #fisher and chisq test
+    tab__(dt,~Gender+Loan_Status) %>% fisher.test
+    tab__(dt,~Gender+Loan_Status) %>% chisq.test
+```  
+  
+ P value lager than 0.05. There is no significant differnece between male and female in getting the loan approve
+  
+# Married vs Loan Status
+   
+```{r}
+  
+    tab(dt,~Married+Loan_Status)
+    
+    tab__(dt,~Married+Loan_Status) %>%
+      barchart(
+        horizontal = FALSE,
+        ylab = 'Number of Loan Status',
+        auto.key = list(
+          space = 'right',
+          reverse.rows = T,
+          title = 'Loan Status'
+        )
+      )
+```   
+         
+    The chart shows the number of married applicants is higher. In my opinion,the married applicant has higher demand in borrowing money such as morgate.
+    
+ 
+```{r}
+    # percent comparision
+    tab__(dt,~Married+Loan_Status,pct=1) %>%
+      barchart(
+        horizontal = FALSE,
+        ylab = 'Number of Loan Status',
+        auto.key = list(
+          space = 'right',
+          reverse.rows = T,
+          title = 'Approve'
+        )
+      )
+    #fisher and chisq test
+    tab__(dt,~Married+Loan_Status) %>% fisher.test
+    tab__(dt,~Married+Loan_Status) %>% chisq.test
+   
+```
+    P-value is smaller than 0.05, so It shows that the married applicant tend to have higher chance to get approve than not .
+    
+# Loan status vs ApplicantIncome
+     
+```{r}    
+    
+    
+    spineplot(Loan_Status~ApplicantIncome,dt)
+```
+
+### II) Modeling.
+
+## 3.1 General model
+```{r}
+
+fullmod<-glm(Loan_Status~.,family=binomial,data=dt)
+summary(fullmod)
+```
+
+# Null model
+
+```{r}
+nothing<-glm(Loan_Status~1,family = binomial,data=dt)
+summary(nothing)
+
+```
+
+From coefficent analysis, it show that Credit History, Property area, education are the significant variables.The model is built below.
+
+```{r}
+remod<-glm(Loan_Status~Credit_History+Married+Property_Area+Education,family=binomial,data=dt)
+summary(remod)
+```
+
+
+# Modeling stepwise
+
+```{r}
+
+backwards<-step(fullmod)
+formula(backwards)
+```
+Result:
+```{r}
+formula(backwards)
+backwards[["aic"]]
+backwards[["deviance"]]
+```
+
+
+
+# Forward direction 
+```{r}
+   # Forward direction.
+forwards <- step(nothing,scope=list(lower=formula(nothing),upper=formula(fullmod)), direction="forward")
+```
+Result:
+```{r}
+formula(forwards)
+forwards[["aic"]]
+forwards[["deviance"]]
+```
+
+```{r}
+bothway <- step(nothing,scope=list(lower=formula(nothing),upper=formula(fullmod)), direction="both")
+```
+
+
+# Both way direction
+
+Result:
+
+```{r}
+formula(forwards)
+
+forwards[["aic"]]
+
+forwards[["deviance"]]
+```
+
+# The final result of modeling:
+Final additive model:
+
+Loan_Status ~ Credit_History + Property_Area + Married + LoanAmount + 
+    Education
+    
+   In using step-wise strategy include backward,forward, and both directions, 
+   the same model is given and 5 significant variables are choosen( Credit History, Propery Area, Married,Loan Amount).The deviance of the model is 469.38 and AIC is 483.3796  with 503 degree of free doom.   
+    
+    
+## 3.2 Interaction between variables.
+
+    There will be 10 interactions for 5 variables (because 5 choice 2 = 10), 
+    but the interaction between Credit History and Loan amount is significant.
+    
+# Interaction between Credit History and Loan amount
+
+```{r}
+inta<-glm(Loan_Status~ Credit_History*LoanAmount+Married+Education+Property_Area,family=binomial,data=dt)
+summary(inta)
+```
+#Checking the adding interaction to model
+
+```{r}
+       anova(backwards,inta,test="LRT")
+
+```
+
+  There is a significant difference interaction between Credit_History and LoanAmount,
+  because the p-value of Credit_History and Loan Amount is  0.05183 ( smaller than 0.05).This is called 'a test of parallelism'. 
+       There is a improvement in deviance and AIC in adding interaction to the model. 
+       The coeficient of Credit_History:LoanAmount is -0.007420.It mean when the large amount of the loan with a good credit history tend to decrease the probabilty.
+
+```{r}
+library(interactions)
+library(jtools)
+interact_plot(inta, pred = Credit_History, modx = LoanAmount)
+
+```
+      The graph shows the intersection between 1+Sd,mean,-1 SD amount as an evidence of the interaction between Credit History and Loan amount.
+      
+
+### Iv) Conclusion:
+      The final model and good fit is:
+      
+      
+      Loan_Status ~ Credit_History + LoanAmount + Married + Education +Property_Area+Credit_History:LoanAmount
+       
+5 significant variables to explain the response (Loan Status):
+
+Credit_History
+
+Loan Amount
+
+Married 
+
+Education
+
+Property_Area
+
+    Those variables are very meaningful in decision whether the bank should approve the application or not.The deviance from the model is 465.60,and AIC is 481.6.The most important preditor in the variable is Credit_History, and the interaction between credit history and loan amount should be considered as well.
+    
