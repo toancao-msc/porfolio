@@ -8,7 +8,7 @@ def cal():
 
 
 root=tkinter.Tk()
-root.iconbitmap('fe.jpg')
+
 root.title("Calculator Z score")
 root.geometry('650x200')
 #create GUI
